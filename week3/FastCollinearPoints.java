@@ -1,4 +1,5 @@
 import java.util.Arrays;
+import java.util.TreeSet;
 
 /**
  * Created by romster on 24.09.15.
@@ -6,8 +7,7 @@ import java.util.Arrays;
 public class FastCollinearPoints {
 
     private LineSegment[] segments;
-    private double[] slopes;
-    private Point[] lastPoints;
+    private TreeSet<LineMeta> segmentsMeta;
     private int segmentsCount;
 
     /**
@@ -36,11 +36,10 @@ public class FastCollinearPoints {
         Point[] inputData = Arrays.copyOf(points, points.length);
         Arrays.sort(inputData);
         segments = new LineSegment[inputData.length];
-        lastPoints = new Point[inputData.length];
-        slopes = new double[inputData.length];
-        for (int i = 0; i < inputData.length-3; i++) {
+        segmentsMeta = new TreeSet<>();
+        for (int i = 0; i < inputData.length - 3; i++) {
             Point p1 = inputData[i];
-            Point[] ps = Arrays.copyOfRange(inputData, i+1, inputData.length);
+            Point[] ps = Arrays.copyOfRange(inputData, i + 1, inputData.length);
             Arrays.sort(ps, p1.slopeOrder());
             double currSlop = p1.slopeTo(ps[0]);
             int pointCount = 2;
@@ -68,22 +67,22 @@ public class FastCollinearPoints {
             return;
         }
         boolean duplicate = false;
-        for (int i = 0; i < segmentsCount; i++) {
-            if (slopes[i] == slope && same(last, lastPoints[i])) {
-                duplicate = true;
-                break;
-            }
+        LineMeta lm = new LineMeta(slope, last);
+        if (segmentsMeta.contains(lm)) {
+            duplicate = true;
         }
+
         if (!duplicate) {
             int i = segmentsCount++;
             if (segmentsCount >= segments.length) {
                 segments = Arrays.copyOf(segments, segments.length * 3 / 2);
-                slopes = Arrays.copyOf(slopes, slopes.length * 3 / 2);
-                lastPoints = Arrays.copyOf(lastPoints, lastPoints.length * 3 / 2);
+//                slopes = Arrays.copyOf(slopes, slopes.length * 3 / 2);
+//                lastPoints = Arrays.copyOf(lastPoints, lastPoints.length * 3 / 2);
             }
             segments[i] = new LineSegment(first, last);
-            lastPoints[i] = last;
-            slopes[i] = slope;
+//            lastPoints[i] = last;
+//            slopes[i] = slope;
+            segmentsMeta.add(lm);
         }
     }
 
@@ -111,5 +110,26 @@ public class FastCollinearPoints {
         return p1.compareTo(p2) == 0;
     }
 
+    private class LineMeta implements Comparable<LineMeta> {
+        private final double slope;
+        private final Point lastPoint;
+
+        public LineMeta(double slope, Point lastPoint) {
+            this.slope = slope;
+            this.lastPoint = lastPoint;
+        }
+
+        @Override
+        public int compareTo(LineMeta o) {
+            int res = Double.compare(this.slope, o.slope);
+            if (res == 0.0) {
+                return this.lastPoint.compareTo(o.lastPoint);
+            } else {
+                return res;
+            }
+        }
+
+
+    }
 
 }
