@@ -7,10 +7,9 @@ import java.util.List;
  */
 public class Board {
 
-    private Board previous;
-    private final int[][] blocks;
+    private final int[] blocks;
     private int zeroI;
-    private int zeroJ;
+    private int N;
 
     /**
      * construct a board from an N-by-N array of blocks
@@ -20,14 +19,21 @@ public class Board {
      */
     public Board(int[][] blocks) {
         validate(blocks);
-        this.blocks = deepArrayCopy(blocks);
+        this.blocks = transformInput(blocks);
+        this.N = blocks.length;
+    }
+
+    private Board(int[] blocks, int dimension, int zeroI) {
+        this.blocks = blocks;
+        this.N = dimension;
+        this.zeroI = zeroI;
     }
 
     /**
      * @return board dimension N
      */
     public int dimension() {
-        return blocks.length;
+        return N;
     }
 
     /**
@@ -35,16 +41,13 @@ public class Board {
      */
     public int hamming() {
         int hamm = 0;
-        int n = blocks.length;
         for (int i = 0; i < blocks.length; i++) {
-            for (int j = 0; j < blocks.length; j++) {
-                int correct = i * n + j + 1;
-                int val = blocks[i][j];
-                if (val == correct || val == 0) {
-                    continue;
-                } else {
-                    hamm++;
-                }
+            int correct = i + 1;
+            int val = blocks[i];
+            if (val == correct || val == 0) {
+                continue;
+            } else {
+                hamm++;
             }
         }
         return hamm;
@@ -55,14 +58,11 @@ public class Board {
      */
     public int manhattan() {
         int manhattan = 0;
-        for (int i = 0; i < dimension(); i++) {
-            for (int j = 0; j < dimension(); j++) {
-                int val = blocks[i][j];
-                if (val == 0) continue;
-                int expected = i * dimension() + j + 1;
-                if (val != expected) {
-                    manhattan += distance(expected, val);
-                }
+        for (int i = 0; i < blocks.length; i++) {
+            int val = blocks[i];
+            if (val == 0) continue;
+            if (val - 1 != i) {
+                manhattan += distance(i, val - 1);
             }
         }
         return manhattan;
@@ -72,12 +72,10 @@ public class Board {
      * @return is this board the goal board?
      */
     public boolean isGoal() {
-        for (int i = 0; i < dimension(); i++) {
-            for (int j = 0; j < dimension(); j++) {
-                int val = blocks[i][j];
-                if (val == 0) continue;
-                if (val != i * dimension() + j + 1) return false;
-            }
+        for (int i = 0; i < blocks.length; i++) {
+            int val = blocks[i];
+            if (val == 0) continue;
+            if (val != i + 1) return false;
         }
         return true;
     }
@@ -86,11 +84,11 @@ public class Board {
      * @return a board that is obtained by exchanging any pair of blocks
      */
     public Board twin() {
-        int[][] newArr = deepArrayCopy(blocks);
+        int[] newArr = Arrays.copyOf(blocks, blocks.length);
         int i = 0;
-        if (zeroI == 0) i++;
-        swap(newArr, i, 0, i, 1);
-        return new Board(newArr);
+        if (zeroI == 0 || zeroI == 1) i += dimension();
+        swap(newArr, i, i + 1);
+        return new Board(newArr, dimension(), zeroI);
     }
 
     @Override
@@ -99,8 +97,8 @@ public class Board {
         if (o == null || getClass() != o.getClass()) return false;
 
         Board board = (Board) o;
-        if (zeroI != board.zeroI || zeroJ != board.zeroJ) return false;
-        return Arrays.deepEquals(blocks, board.blocks);
+        if (zeroI != board.zeroI) return false;
+        return Arrays.equals(this.blocks, board.blocks);
 
     }
 
@@ -110,34 +108,22 @@ public class Board {
      */
     public Iterable<Board> neighbors() {
         List<Board> neighbors = new ArrayList<>(4);
-        Board sameAsPrevious = null;
-        Board temp;
-        if (zeroI > 0) {
-            temp = tryToAddNeighbor(neighbors, zeroI - 1, zeroJ);
-            if (temp != null) {
-                sameAsPrevious = temp;
-            }
+        //left
+        if (zeroI % dimension() != 0) {
+            addNeighbor(neighbors, zeroI - 1);
         }
-        if (zeroI < dimension() - 1) {
-            temp = tryToAddNeighbor(neighbors, zeroI + 1, zeroJ);
-            if (temp != null) {
-                sameAsPrevious = temp;
-            }
+        //right
+        if (zeroI % dimension() != dimension() - 1) {
+            addNeighbor(neighbors, zeroI + 1);
         }
-        if (zeroJ > 0) {
-            temp = tryToAddNeighbor(neighbors, zeroI, zeroJ - 1);
-            if (temp != null) {
-                sameAsPrevious = temp;
-            }
+        //top
+        if (zeroI / dimension() != 0) {
+            addNeighbor(neighbors, zeroI - dimension());
+
         }
-        if (zeroJ < dimension() - 1) {
-            temp = tryToAddNeighbor(neighbors, zeroI, zeroJ + 1);
-            if (temp != null) {
-                sameAsPrevious = temp;
-            }
-        }
-        if (sameAsPrevious != null) {
-            neighbors.add(sameAsPrevious);
+        //bottom
+        if (zeroI / dimension() != dimension() - 1) {
+            addNeighbor(neighbors, zeroI + dimension());
         }
         return neighbors;
     }
@@ -150,11 +136,14 @@ public class Board {
     public String toString() {
         StringBuilder s = new StringBuilder();
         s.append(dimension() + "\n");
-        for (int i = 0; i < dimension(); i++) {
-            for (int j = 0; j < dimension(); j++) {
-                s.append(String.format("%2d ", blocks[i][j]));
+        int newLine = dimension();
+        for (int i = 0; i < blocks.length; i++) {
+            s.append(String.format("%2d ", blocks[i]));
+            newLine--;
+            if (newLine == 0) {
+                newLine = dimension();
+                s.append("\n");
             }
-            s.append("\n");
         }
         return s.toString();
     }
@@ -171,8 +160,7 @@ public class Board {
                 if (currValue == 0) {
                     if (!includesZero) {
                         includesZero = true;
-                        zeroI = i;
-                        zeroJ = j;
+                        zeroI = i * n + j;
                     } else {
                         throw new IllegalArgumentException("Only one 0-element allowed");
                     }
@@ -193,16 +181,8 @@ public class Board {
     private int distance(int from, int to) {
         int a = from;
         int b = to;
-        int aXIndex = 0;
-        int bXIndex = 0;
-        while (a % dimension() != 0) {
-            a++;
-            aXIndex++;
-        }
-        while (b % dimension() != 0) {
-            b++;
-            bXIndex++;
-        }
+        int aXIndex = a % dimension();
+        int bXIndex = b % dimension();
         int xDistance = Math.abs(aXIndex - bXIndex);
         int aYIndex = a / dimension();
         int bYIndex = b / dimension();
@@ -212,45 +192,34 @@ public class Board {
     }
 
     /**
-     * perfomance optimization
-     *
      * @param neighbors
      * @param newZeroI
-     * @param newZeroJ
-     * @return null if neighbour is unique, neighbour if it is same as previous (that neighbor
-     * will not be added to list)
      */
-    private Board tryToAddNeighbor(List<Board> neighbors, int newZeroI, int newZeroJ) {
-        int[][] newArr = deepArrayCopy(blocks);
-        swap(newArr, zeroI, zeroJ, newZeroI, newZeroJ);
-        Board newBoard = new Board(newArr);
-        newBoard.previous = this;
-        if (isSameAsPrevious(newBoard)) {
-            return newBoard;
-        } else {
-            neighbors.add(newBoard);
-            return null;
+    private Board addNeighbor(List<Board> neighbors, int newZeroI) {
+        int[] newArr = Arrays.copyOf(blocks, blocks.length);
+        swap(newArr, zeroI, newZeroI);
+        Board newBoard = new Board(newArr, dimension(), newZeroI);
+        neighbors.add(newBoard);
+        return null;
+    }
+
+    private void swap(int[] arr, int i1, int i2) {
+        arr[i1] ^= arr[i2];
+        arr[i2] ^= arr[i1];
+        arr[i1] ^= arr[i2];
+    }
+
+    private int[] transformInput(int[][] input) {
+        int n = input.length;
+        int[] result = new int[n * n];
+        int index = 0;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < input[i].length; j++) {
+                result[index++] = input[i][j];
+            }
         }
+        return result;
     }
 
-    private void swap(int[][] arr, int i1, int j1, int i2, int j2) {
-        arr[i1][j1] ^= arr[i2][j2];
-        arr[i2][j2] ^= arr[i1][j1];
-        arr[i1][j1] ^= arr[i2][j2];
-    }
-
-    private int[][] deepArrayCopy(int[][] arr) {
-        int[][] newArr = new int[arr.length][];
-        for (int i = 0; i < arr.length; i++) {
-            newArr[i] = Arrays.copyOf(arr[i], arr[i].length);
-        }
-        return newArr;
-    }
-
-    private boolean isSameAsPrevious(Board newBoard) {
-        return previous != null
-                && newBoard.zeroI == previous.zeroI
-                && newBoard.zeroJ == previous.zeroJ;
-    }
 
 }

@@ -4,7 +4,6 @@ import edu.princeton.cs.algs4.StdOut;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 
 /**
  * Created by romster on 04.10.15.
@@ -110,23 +109,13 @@ public class Solver {
 
 
     private void addNeighborsToPQ(MinPQ<Step> pq, Step currStep) {
-        if (currStep.previous == null) {
-            currStep.board.neighbors().forEach(
-                    a -> pq.insert(new Step(a, currStep.moves + 1, currStep)));
-        } else {
-            Iterable<Board> neighbors = currStep.board.neighbors();
-            Iterator<Board> iterator = neighbors.iterator();
-            while (iterator.hasNext()) {
-                Board b = iterator.next();
-                boolean isLast = !iterator.hasNext();
-//                if (!isLast || !b.equals(currStep.previous.board)) {
-//                    pq.insert(new Step(b, currStep.moves + 1, currStep));
-//                }
-                if (checkParents(b, currStep)) {
-                    pq.insert(new Step(b, currStep.moves + 1, currStep));
-                }
+        Iterable<Board> neighbors = currStep.board.neighbors();
+        neighbors.forEach(a -> insertIfIsNotDuplicate(pq, a, currStep));
+    }
 
-            }
+    private void insertIfIsNotDuplicate(MinPQ<Step> pq, Board neighbour, Step currStep) {
+        if (checkParents(neighbour, currStep)) {
+            pq.insert(new Step(neighbour, currStep.moves + 1, currStep));
         }
     }
 
